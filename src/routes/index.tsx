@@ -76,8 +76,23 @@ function StartScreen({
         </div>
         <h1 className="text-5xl sm:text-6xl font-bold text-foreground">Wordstorm</h1>
         <p className="text-muted-foreground text-base max-w-sm mx-auto">
-          Tap letters to spell as many words as you can in 90 seconds. Everyone plays today's board.
+          Tap letters on the 3×3 board to spell words. Min 3, max 9 letters. You have 90 seconds — and yes, all 9 letters do form one word.
         </p>
+      </div>
+
+      {/* Scoring legend */}
+      <div className="mt-6 rounded-xl border border-border/60 bg-muted/60 px-4 py-3">
+        <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center mb-2">
+          Scoring by word length
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {SCORE_TABLE.map((s) => (
+            <div key={s.len} className="rounded-md bg-card border border-border/60 py-1">
+              <div className="text-[10px] text-muted-foreground font-mono">{s.len}</div>
+              <div className="text-sm font-bold text-primary tabular-nums">{s.pts}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <form
