@@ -1,16 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { WORDS } from "@/lib/words";
-import { generateBoard, scoreFor, SCORE_TABLE, todayKey } from "@/lib/game";
+import {
+  canBuildFrom,
+  generateBoard,
+  scoreFor,
+  SCORE_TABLE,
+  todayKey,
+  useDictionary,
+} from "@/lib/game";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Wordstorm — Daily Team Word Puzzle" },
-      { name: "description", content: "Form as many words as you can in 90 seconds on today's shared board. Compete on the live team leaderboard." },
+      { name: "description", content: "Type as many words as you can in 90 seconds using today's 9 letters. Live team leaderboard." },
       { property: "og:title", content: "Wordstorm — Daily Team Word Puzzle" },
-      { property: "og:description", content: "Form as many words as you can in 90 seconds. Live team leaderboard." },
+      { property: "og:description", content: "Type words from today's 9 letters. Live team leaderboard." },
     ],
   }),
   component: WordstormPage,
@@ -24,6 +30,7 @@ function WordstormPage() {
   const [nickname, setNickname] = useState("");
   const [finalScore, setFinalScore] = useState(0);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
+  const [revealedAnchor, setRevealedAnchor] = useState<string>("");
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center px-4 py-8">
@@ -38,9 +45,10 @@ function WordstormPage() {
         {phase === "game" && (
           <GameScreen
             nickname={nickname.trim()}
-            onFinish={(score, id) => {
+            onFinish={(score, id, anchor) => {
               setFinalScore(score);
               setSubmittedId(id);
+              setRevealedAnchor(anchor);
               setPhase("leaderboard");
             }}
           />
@@ -50,6 +58,7 @@ function WordstormPage() {
             myId={submittedId}
             myScore={finalScore}
             myName={nickname.trim()}
+            anchor={revealedAnchor}
             onPlayAgain={() => setPhase("game")}
           />
         )}
@@ -76,11 +85,10 @@ function StartScreen({
         </div>
         <h1 className="text-5xl sm:text-6xl font-bold text-foreground">Wordstorm</h1>
         <p className="text-muted-foreground text-base max-w-sm mx-auto">
-          Tap letters on the 3×3 board to spell words. Min 3, max 9 letters. You have 90 seconds — and yes, all 9 letters do form one word.
+          Type as many words as you can from today's 9 letters. Min 3, max 9 letters. 90 seconds — and yes, all 9 letters form one word.
         </p>
       </div>
 
-      {/* Scoring legend */}
       <div className="mt-6 rounded-xl border border-border/60 bg-muted/60 px-4 py-3">
         <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center mb-2">
           Scoring by word length
@@ -131,16 +139,36 @@ function GameScreen({
   onFinish,
 }: {
   nickname: string;
-  onFinish: (score: number, id: string | null) => void;
+  onFinish: (score: number, id: string | null, anchor: string) => void;
 }) {
   const boardKey = useMemo(() => todayKey(), []);
-  const { tiles: board } = useMemo(() => generateBoard(boardKey), [boardKey]);
-  const [selected, setSelected] = useState<number[]>([]);
+  const { tiles: board, anchor } = useMemo(() => generateBoard(boardKey), [boardKey]);
+  const { dict, ready } = useDictionary();
+
+  const [input, setInput] = useState("");
   const [score, setScore] = useState(0);
   const [found, setFound] = useState<string[]>([]);
   const [timeLeft, setTimeLeft] = useState(90);
-  const [feedback, setFeedback] = useState<"valid" | "invalid" | null>(null);
+  const [feedback, setFeedback] = useState<{ kind: "valid" | "invalid"; msg: string } | null>(null);
   const submittedRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Compute which board letter slots are "covered" by the current input
+  const usedIndices = useMemo(() => {
+    const used: number[] = [];
+    const cleaned = input.toLowerCase().replace(/[^a-z]/g, "");
+    const taken = new Set<number>();
+    for (const ch of cleaned) {
+      const idx = board.findIndex((t, i) => !taken.has(i) && t.toLowerCase() === ch);
+      if (idx === -1) {
+        used.push(-1);
+      } else {
+        taken.add(idx);
+        used.push(idx);
+      }
+    }
+    return new Set(used.filter((i) => i >= 0));
+  }, [input, board]);
 
   // Timer
   useEffect(() => {
@@ -148,6 +176,11 @@ function GameScreen({
     const t = setInterval(() => setTimeLeft((s) => s - 1), 1000);
     return () => clearInterval(t);
   }, [timeLeft]);
+
+  // Focus input on mount
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   // End of round — submit
   useEffect(() => {
@@ -161,49 +194,53 @@ function GameScreen({
           .select("id")
           .single();
         if (error) throw error;
-        onFinish(score, data?.id ?? null);
+        onFinish(score, data?.id ?? null, anchor);
       } catch (e) {
         console.error(e);
-        onFinish(score, null);
+        onFinish(score, null, anchor);
       }
     })();
-  }, [timeLeft, score, nickname, boardKey, onFinish]);
+  }, [timeLeft, score, nickname, boardKey, onFinish, anchor]);
 
-  const word = selected.map((i) => board[i]).join("");
+  const flash = (kind: "valid" | "invalid", msg: string) => {
+    setFeedback({ kind, msg });
+    setTimeout(() => setFeedback(null), kind === "valid" ? 600 : 500);
+  };
 
-  const toggleTile = useCallback((i: number) => {
-    setSelected((cur) => (cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i]));
-  }, []);
-
-  const clear = () => setSelected([]);
-
-  const submit = () => {
-    const w = word.toLowerCase();
-    if (w.length < 3 || !WORDS.has(w) || found.includes(w)) {
-      setFeedback("invalid");
-      setTimeout(() => setFeedback(null), 450);
-      return;
-    }
+  const submit = (e?: FormEvent) => {
+    e?.preventDefault();
+    const w = input.toLowerCase().replace(/[^a-z]/g, "");
+    if (!w) return;
+    if (w.length < 3) return flash("invalid", "Too short (min 3)");
+    if (w.length > 9) return flash("invalid", "Too long (max 9)");
+    if (!canBuildFrom(w, board)) return flash("invalid", "Uses letters not on the board");
+    if (found.includes(w)) return flash("invalid", "Already found");
+    if (!dict || !dict.has(w)) return flash("invalid", "Not in dictionary");
     const pts = scoreFor(w.length);
     setScore((s) => s + pts);
     setFound((f) => [w, ...f]);
-    setFeedback("valid");
-    setSelected([]);
-    setTimeout(() => setFeedback(null), 500);
+    flash("valid", `+${pts}`);
+    setInput("");
   };
+
+  const shuffle = () => {
+    // visual shuffle of tile order is intentionally not seeded — purely cosmetic
+    // (we leave the board fixed to keep daily comparability; do nothing here)
+  };
+  void shuffle;
 
   const mm = String(Math.floor(timeLeft / 60)).padStart(1, "0");
   const ss = String(timeLeft % 60).padStart(2, "0");
   const timeUrgent = timeLeft <= 10;
+  const cleanedInput = input.toLowerCase().replace(/[^a-z]/g, "");
+  const allOk = cleanedInput.length >= 3 && cleanedInput.length <= 9 && canBuildFrom(cleanedInput, board);
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium text-muted-foreground">
-            {nickname}
-          </div>
+        <div className="px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium text-muted-foreground truncate max-w-[40%]">
+          {nickname}
         </div>
         <div className={`px-4 py-1.5 rounded-full font-mono font-bold text-lg tabular-nums tracking-tight ${timeUrgent ? "bg-destructive text-destructive-foreground animate-pulse" : "bg-card border border-border text-foreground"}`}>
           {mm}:{ss}
@@ -213,38 +250,67 @@ function GameScreen({
         </div>
       </div>
 
-      {/* Current word display */}
-      <div
-        className={`bg-card border border-border rounded-2xl p-4 min-h-[68px] flex items-center justify-center text-3xl font-bold tracking-[0.2em] uppercase ${feedback === "invalid" ? "animate-shake border-destructive text-destructive" : ""} ${feedback === "valid" ? "animate-flash border-success text-success" : ""}`}
-      >
-        {word || <span className="text-muted-foreground/40 text-base font-normal tracking-normal normal-case">Tap letters to spell a word</span>}
-      </div>
-
-      {/* Board — 3x3 */}
+      {/* Letter bank — 3x3 (display only) */}
       <div className="grid grid-cols-3 gap-3 select-none max-w-sm mx-auto w-full">
         {board.map((ch, i) => {
-          const active = selected.includes(i);
-          const order = selected.indexOf(i);
+          const active = usedIndices.has(i);
           return (
-            <button
+            <div
               key={i}
-              onClick={() => toggleTile(i)}
-              className={`relative aspect-square rounded-2xl text-4xl sm:text-5xl font-bold transition-all duration-100 active:scale-95 animate-pop ${
+              className={`aspect-square rounded-2xl text-4xl sm:text-5xl font-bold flex items-center justify-center transition-all duration-150 animate-pop ${
                 active
                   ? "bg-tile-active text-tile-active-foreground shadow-[var(--shadow-tile-active)] -translate-y-0.5"
-                  : "bg-tile text-tile-foreground shadow-[var(--shadow-tile)] hover:-translate-y-0.5"
+                  : "bg-tile text-tile-foreground shadow-[var(--shadow-tile)]"
               }`}
             >
               {ch}
-              {active && (
-                <span className="absolute top-1.5 right-2 text-[11px] font-mono opacity-80">
-                  {order + 1}
-                </span>
-              )}
-            </button>
+            </div>
           );
         })}
       </div>
+
+      {/* Typing input */}
+      <form onSubmit={submit} className="space-y-2">
+        <div
+          className={`bg-card border rounded-2xl flex items-center gap-2 px-2 py-2 transition ${
+            feedback?.kind === "invalid" ? "animate-shake border-destructive" : feedback?.kind === "valid" ? "animate-flash border-success" : "border-border"
+          }`}
+        >
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value.replace(/[^a-zA-Z]/g, "").slice(0, 9))}
+            placeholder={ready ? "Type a word and hit Enter…" : "Loading dictionary…"}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            maxLength={9}
+            disabled={!ready || timeLeft <= 0}
+            className="flex-1 bg-transparent px-3 py-2 text-2xl font-bold tracking-[0.15em] uppercase placeholder:text-muted-foreground/40 placeholder:font-normal placeholder:tracking-normal placeholder:normal-case placeholder:text-base focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={!allOk || timeLeft <= 0}
+            className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold shadow-[var(--shadow-tile-active)] hover:brightness-110 active:translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition"
+          >
+            Enter
+          </button>
+        </div>
+        <div className="flex items-center justify-between text-xs text-muted-foreground px-1 min-h-[18px]">
+          <span>
+            {feedback ? (
+              <span className={feedback.kind === "valid" ? "text-success font-semibold" : "text-destructive font-semibold"}>
+                {feedback.msg}
+              </span>
+            ) : (
+              "Use only the 9 letters above · 3–9 letters"
+            )}
+          </span>
+          <span className="tabular-nums">{cleanedInput.length}/9</span>
+        </div>
+      </form>
 
       {/* Scoring legend */}
       <div className="bg-card/60 border border-border/60 rounded-xl px-3 py-2">
@@ -263,24 +329,6 @@ function GameScreen({
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <button
-          onClick={clear}
-          disabled={selected.length === 0}
-          className="py-3 rounded-xl bg-card border border-border text-foreground font-semibold hover:bg-muted active:translate-y-px disabled:opacity-40 disabled:cursor-not-allowed transition"
-        >
-          Clear
-        </button>
-        <button
-          onClick={submit}
-          disabled={selected.length < 3}
-          className="py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-[var(--shadow-tile-active)] hover:brightness-110 active:translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition"
-        >
-          Submit
-        </button>
       </div>
 
       {/* Found words */}
@@ -309,11 +357,13 @@ function Leaderboard({
   myId,
   myScore,
   myName,
+  anchor,
   onPlayAgain,
 }: {
   myId: string | null;
   myScore: number;
   myName: string;
+  anchor: string;
   onPlayAgain: () => void;
 }) {
   const day = useMemo(() => todayKey(), []);
@@ -357,6 +407,21 @@ function Leaderboard({
           Live team leaderboard · shared across everyone today
         </p>
       </div>
+
+      {/* Reveal the 9-letter word */}
+      {anchor && (
+        <div className="bg-card border border-border rounded-2xl p-5 text-center shadow-[var(--shadow-card)]">
+          <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">
+            Today's 9-letter word
+          </div>
+          <div className="text-3xl sm:text-4xl font-bold tracking-[0.25em] uppercase text-primary">
+            {anchor}
+          </div>
+          <div className="text-xs text-muted-foreground mt-2">
+            Worth {scoreFor(9)} points if you found it
+          </div>
+        </div>
+      )}
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-[var(--shadow-card)]">
         <div className="px-5 py-3 border-b border-border flex items-center justify-between">
