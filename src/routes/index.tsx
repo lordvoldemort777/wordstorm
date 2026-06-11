@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { WORDS } from "@/lib/words";
-import { generateBoard, scoreFor, todayKey } from "@/lib/game";
+import { generateBoard, scoreFor, SCORE_TABLE, todayKey } from "@/lib/game";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -76,8 +76,23 @@ function StartScreen({
         </div>
         <h1 className="text-5xl sm:text-6xl font-bold text-foreground">Wordstorm</h1>
         <p className="text-muted-foreground text-base max-w-sm mx-auto">
-          Tap letters to spell as many words as you can in 90 seconds. Everyone plays today's board.
+          Tap letters on the 3×3 board to spell words. Min 3, max 9 letters. You have 90 seconds — and yes, all 9 letters do form one word.
         </p>
+      </div>
+
+      {/* Scoring legend */}
+      <div className="mt-6 rounded-xl border border-border/60 bg-muted/60 px-4 py-3">
+        <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center mb-2">
+          Scoring by word length
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center">
+          {SCORE_TABLE.map((s) => (
+            <div key={s.len} className="rounded-md bg-card border border-border/60 py-1">
+              <div className="text-[10px] text-muted-foreground font-mono">{s.len}</div>
+              <div className="text-sm font-bold text-primary tabular-nums">{s.pts}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <form
@@ -119,7 +134,7 @@ function GameScreen({
   onFinish: (score: number, id: string | null) => void;
 }) {
   const boardKey = useMemo(() => todayKey(), []);
-  const board = useMemo(() => generateBoard(boardKey), [boardKey]);
+  const { tiles: board } = useMemo(() => generateBoard(boardKey), [boardKey]);
   const [selected, setSelected] = useState<number[]>([]);
   const [score, setScore] = useState(0);
   const [found, setFound] = useState<string[]>([]);
@@ -205,8 +220,8 @@ function GameScreen({
         {word || <span className="text-muted-foreground/40 text-base font-normal tracking-normal normal-case">Tap letters to spell a word</span>}
       </div>
 
-      {/* Board */}
-      <div className="grid grid-cols-4 gap-2.5 sm:gap-3 select-none">
+      {/* Board — 3x3 */}
+      <div className="grid grid-cols-3 gap-3 select-none max-w-sm mx-auto w-full">
         {board.map((ch, i) => {
           const active = selected.includes(i);
           const order = selected.indexOf(i);
@@ -214,7 +229,7 @@ function GameScreen({
             <button
               key={i}
               onClick={() => toggleTile(i)}
-              className={`relative aspect-square rounded-2xl text-3xl sm:text-4xl font-bold transition-all duration-100 active:scale-95 animate-pop ${
+              className={`relative aspect-square rounded-2xl text-4xl sm:text-5xl font-bold transition-all duration-100 active:scale-95 animate-pop ${
                 active
                   ? "bg-tile-active text-tile-active-foreground shadow-[var(--shadow-tile-active)] -translate-y-0.5"
                   : "bg-tile text-tile-foreground shadow-[var(--shadow-tile)] hover:-translate-y-0.5"
@@ -222,13 +237,32 @@ function GameScreen({
             >
               {ch}
               {active && (
-                <span className="absolute top-1.5 right-2 text-[10px] font-mono opacity-80">
+                <span className="absolute top-1.5 right-2 text-[11px] font-mono opacity-80">
                   {order + 1}
                 </span>
               )}
             </button>
           );
         })}
+      </div>
+
+      {/* Scoring legend */}
+      <div className="bg-card/60 border border-border/60 rounded-xl px-3 py-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+            Scoring · 3–9 letters
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {SCORE_TABLE.map((s) => (
+              <span
+                key={s.len}
+                className="text-[11px] font-mono tabular-nums px-1.5 py-0.5 rounded bg-muted text-foreground/80"
+              >
+                {s.len}→<span className="font-bold text-primary">{s.pts}</span>
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Actions */}
