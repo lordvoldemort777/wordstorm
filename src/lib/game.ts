@@ -1,6 +1,6 @@
-// Game utilities: seeded RNG, board generation, scoring
-
-import { WORDS } from "./words";
+// Game utilities: seeded RNG, board generation, scoring, dictionary loader
+import { useEffect, useState } from "react";
+import { NINE_LETTER_ANCHORS } from "./anchors";
 
 function hashSeed(s: string): number {
   let h = 2166136261;
@@ -28,32 +28,10 @@ export function todayKey(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// Pool of 9-letter words from the dictionary that contain at least 3 vowels
-// (ensures the board feels playable, not consonant soup)
-let NINE_POOL: string[] | null = null;
-function getNinePool(): string[] {
-  if (NINE_POOL) return NINE_POOL;
-  const vowels = new Set("aeiou");
-  NINE_POOL = [];
-  for (const w of WORDS) {
-    if (w.length !== 9) continue;
-    let v = 0;
-    for (const c of w) if (vowels.has(c)) v++;
-    if (v >= 3) NINE_POOL.push(w);
-  }
-  if (NINE_POOL.length === 0) {
-    // Fallback safety net
-    NINE_POOL = ["education", "important", "beautiful", "wonderful", "celebrate", "discovery"];
-  }
-  return NINE_POOL;
-}
-
 export function generateBoard(seedKey: string): { tiles: string[]; anchor: string } {
-  const pool = getNinePool();
   const rnd = mulberry32(hashSeed("wg9-" + seedKey));
-  const anchor = pool[Math.floor(rnd() * pool.length)];
+  const anchor = NINE_LETTER_ANCHORS[Math.floor(rnd() * NINE_LETTER_ANCHORS.length)];
   const letters = anchor.toUpperCase().split("");
-  // Fisher-Yates with seeded RNG
   for (let i = letters.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1));
     [letters[i], letters[j]] = [letters[j], letters[i]];
@@ -69,7 +47,7 @@ export function scoreFor(len: number): number {
   if (len === 6) return 6;
   if (len === 7) return 10;
   if (len === 8) return 15;
-  return 25; // 9 letters
+  return 25;
 }
 
 export const SCORE_TABLE: { len: string; pts: number }[] = [
@@ -81,3 +59,43 @@ export const SCORE_TABLE: { len: string; pts: number }[] = [
   { len: "8", pts: 15 },
   { len: "9", pts: 25 },
 ];
+
+// Check word can be built from a multiset of available tiles
+export function canBuildFrom(word: string, tiles: string[]): boolean {
+  const pool: Record<string, number> = {};
+  for (const t of tiles) {
+    const k = t.toLowerCase();
+    pool[k] = (pool[k] ?? 0) + 1;
+  }
+  for (const ch of word.toLowerCase()) {
+    if (!pool[ch]) return false;
+    pool[ch]--;
+  }
+  return true;
+}
+
+// Dictionary loader: fetches /words.txt once, caches in module scope
+let dictPromise: Promise<Set<string>> | null = null;
+function loadDictionary(): Promise<Set<string>> {
+  if (!dictPromise) {
+    dictPromise = fetch("/words.txt")
+      .then((r) => r.text())
+      .then((txt) => new Set(txt.split(/\r?\n/).filter(Boolean)))
+      .catch(() => new Set<string>());
+  }
+  return dictPromise;
+}
+
+export function useDictionary(): { dict: Set<string> | null; ready: boolean } {
+  const [dict, setDict] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    loadDictionary().then((d) => {
+      if (mounted) setDict(d);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  return { dict, ready: dict !== null };
+}
