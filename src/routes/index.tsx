@@ -119,7 +119,7 @@ function GameScreen({
   onFinish: (score: number, id: string | null) => void;
 }) {
   const boardKey = useMemo(() => todayKey(), []);
-  const board = useMemo(() => generateBoard(boardKey), [boardKey]);
+  const { tiles: board } = useMemo(() => generateBoard(boardKey), [boardKey]);
   const [selected, setSelected] = useState<number[]>([]);
   const [score, setScore] = useState(0);
   const [found, setFound] = useState<string[]>([]);
