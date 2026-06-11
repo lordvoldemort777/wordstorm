@@ -81,6 +81,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "Daily team word puzzle" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { property: "og:title", content: "Wordstorm" },
+      { name: "twitter:title", content: "Wordstorm" },
+      { property: "og:description", content: "Daily team word puzzle" },
+      { name: "twitter:description", content: "Daily team word puzzle" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bf97696d-5b8e-4457-8ccc-114e9b2dbad8/id-preview-4ba6882b--c927c6ae-35bc-4fcc-952d-1f39e8715f04.lovable.app-1781160639214.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bf97696d-5b8e-4457-8ccc-114e9b2dbad8/id-preview-4ba6882b--c927c6ae-35bc-4fcc-952d-1f39e8715f04.lovable.app-1781160639214.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
