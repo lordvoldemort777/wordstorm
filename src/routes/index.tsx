@@ -489,7 +489,7 @@ function Leaderboard({
         {loading ? (
           <div className="p-8 text-center text-muted-foreground text-sm">Loading…</div>
         ) : rows.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">No scores yet today.</div>
+          <div className="p-8 text-center text-muted-foreground text-sm">No scores {tab === "today" ? "yet today" : "for yesterday"}.</div>
         ) : (
           <ol className="divide-y divide-border">
             {rows.map((r, i) => {
