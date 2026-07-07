@@ -250,23 +250,56 @@ function GameScreen({
         </div>
       </div>
 
-      {/* Letter bank — 3x3 (display only) */}
+      {/* Letter bank — 3x3 (tap to append) */}
       <div className="grid grid-cols-3 gap-3 select-none max-w-sm mx-auto w-full">
         {board.map((ch, i) => {
           const active = usedIndices.has(i);
+          const disabled = !ready || timeLeft <= 0 || input.length >= 9;
           return (
-            <div
+            <button
+              type="button"
               key={i}
-              className={`aspect-square rounded-2xl text-4xl sm:text-5xl font-bold flex items-center justify-center transition-all duration-150 animate-pop ${
+              disabled={disabled}
+              onClick={() => {
+                setInput((v) => (v + ch).slice(0, 9).toUpperCase());
+                inputRef.current?.focus();
+              }}
+              className={`aspect-square rounded-2xl text-4xl sm:text-5xl font-bold flex items-center justify-center transition-all duration-150 animate-pop active:scale-95 disabled:opacity-60 ${
                 active
                   ? "bg-tile-active text-tile-active-foreground shadow-[var(--shadow-tile-active)] -translate-y-0.5"
                   : "bg-tile text-tile-foreground shadow-[var(--shadow-tile)]"
               }`}
             >
               {ch}
-            </div>
+            </button>
           );
         })}
+      </div>
+
+      {/* Mobile helper buttons */}
+      <div className="flex gap-2 max-w-sm mx-auto w-full">
+        <button
+          type="button"
+          onClick={() => {
+            setInput((v) => v.slice(0, -1));
+            inputRef.current?.focus();
+          }}
+          disabled={!input || timeLeft <= 0}
+          className="flex-1 py-2 rounded-xl bg-muted text-foreground font-medium border border-border disabled:opacity-40 active:translate-y-px"
+        >
+          ⌫ Delete
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setInput("");
+            inputRef.current?.focus();
+          }}
+          disabled={!input || timeLeft <= 0}
+          className="flex-1 py-2 rounded-xl bg-muted text-foreground font-medium border border-border disabled:opacity-40 active:translate-y-px"
+        >
+          Clear
+        </button>
       </div>
 
       {/* Typing input */}
