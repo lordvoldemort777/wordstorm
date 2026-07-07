@@ -250,23 +250,56 @@ function GameScreen({
         </div>
       </div>
 
-      {/* Letter bank — 3x3 (display only) */}
+      {/* Letter bank — 3x3 (tap to append) */}
       <div className="grid grid-cols-3 gap-3 select-none max-w-sm mx-auto w-full">
         {board.map((ch, i) => {
           const active = usedIndices.has(i);
+          const disabled = !ready || timeLeft <= 0 || input.length >= 9;
           return (
-            <div
+            <button
+              type="button"
               key={i}
-              className={`aspect-square rounded-2xl text-4xl sm:text-5xl font-bold flex items-center justify-center transition-all duration-150 animate-pop ${
+              disabled={disabled}
+              onClick={() => {
+                setInput((v) => (v + ch).slice(0, 9).toUpperCase());
+                inputRef.current?.focus();
+              }}
+              className={`aspect-square rounded-2xl text-4xl sm:text-5xl font-bold flex items-center justify-center transition-all duration-150 animate-pop active:scale-95 disabled:opacity-60 ${
                 active
                   ? "bg-tile-active text-tile-active-foreground shadow-[var(--shadow-tile-active)] -translate-y-0.5"
                   : "bg-tile text-tile-foreground shadow-[var(--shadow-tile)]"
               }`}
             >
               {ch}
-            </div>
+            </button>
           );
         })}
+      </div>
+
+      {/* Mobile helper buttons */}
+      <div className="flex gap-2 max-w-sm mx-auto w-full">
+        <button
+          type="button"
+          onClick={() => {
+            setInput((v) => v.slice(0, -1));
+            inputRef.current?.focus();
+          }}
+          disabled={!input || timeLeft <= 0}
+          className="flex-1 py-2 rounded-xl bg-muted text-foreground font-medium border border-border disabled:opacity-40 active:translate-y-px"
+        >
+          ⌫ Delete
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setInput("");
+            inputRef.current?.focus();
+          }}
+          disabled={!input || timeLeft <= 0}
+          className="flex-1 py-2 rounded-xl bg-muted text-foreground font-medium border border-border disabled:opacity-40 active:translate-y-px"
+        >
+          Clear
+        </button>
       </div>
 
       {/* Typing input */}
@@ -366,12 +399,20 @@ function Leaderboard({
   anchor: string;
   onPlayAgain: () => void;
 }) {
-  const day = useMemo(() => todayKey(), []);
+  const today = useMemo(() => todayKey(), []);
+  const yesterday = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+  const [tab, setTab] = useState<"today" | "yesterday">("today");
+  const day = tab === "today" ? today : yesterday;
   const [rows, setRows] = useState<ScoreRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
     const fetchRows = async () => {
       const { data } = await supabase
         .from("scores")
@@ -387,8 +428,8 @@ function Leaderboard({
     };
     fetchRows();
     const channel = supabase
-      .channel("scores-live")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "scores" }, () => fetchRows())
+      .channel(`scores-live-${day}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "scores", filter: `play_date=eq.${day}` }, () => fetchRows())
       .subscribe();
     return () => {
       mounted = false;
@@ -404,7 +445,7 @@ function Leaderboard({
         </div>
         <h2 className="text-4xl font-bold">You scored {myScore}</h2>
         <p className="text-sm text-muted-foreground">
-          Live team leaderboard · shared across everyone today
+          Live team leaderboard · resets daily
         </p>
       </div>
 
@@ -423,15 +464,32 @@ function Leaderboard({
         </div>
       )}
 
+      {/* Day tabs */}
+      <div className="grid grid-cols-2 gap-2 bg-muted p-1 rounded-xl">
+        {(["today", "yesterday"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`py-2 rounded-lg font-semibold text-sm capitalize transition ${
+              tab === t
+                ? "bg-card text-foreground shadow-[var(--shadow-card)]"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-[var(--shadow-card)]">
         <div className="px-5 py-3 border-b border-border flex items-center justify-between">
-          <h3 className="font-semibold">Today's Top Players</h3>
+          <h3 className="font-semibold">{tab === "today" ? "Today's" : "Yesterday's"} Top Players</h3>
           <span className="text-xs text-muted-foreground">{rows.length} {rows.length === 1 ? "score" : "scores"}</span>
         </div>
         {loading ? (
           <div className="p-8 text-center text-muted-foreground text-sm">Loading…</div>
         ) : rows.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">No scores yet today.</div>
+          <div className="p-8 text-center text-muted-foreground text-sm">No scores {tab === "today" ? "yet today" : "for yesterday"}.</div>
         ) : (
           <ol className="divide-y divide-border">
             {rows.map((r, i) => {
