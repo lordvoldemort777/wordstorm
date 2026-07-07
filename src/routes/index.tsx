@@ -399,12 +399,20 @@ function Leaderboard({
   anchor: string;
   onPlayAgain: () => void;
 }) {
-  const day = useMemo(() => todayKey(), []);
+  const today = useMemo(() => todayKey(), []);
+  const yesterday = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+  const [tab, setTab] = useState<"today" | "yesterday">("today");
+  const day = tab === "today" ? today : yesterday;
   const [rows, setRows] = useState<ScoreRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
     const fetchRows = async () => {
       const { data } = await supabase
         .from("scores")
@@ -420,8 +428,8 @@ function Leaderboard({
     };
     fetchRows();
     const channel = supabase
-      .channel("scores-live")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "scores" }, () => fetchRows())
+      .channel(`scores-live-${day}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "scores", filter: `play_date=eq.${day}` }, () => fetchRows())
       .subscribe();
     return () => {
       mounted = false;
@@ -437,7 +445,7 @@ function Leaderboard({
         </div>
         <h2 className="text-4xl font-bold">You scored {myScore}</h2>
         <p className="text-sm text-muted-foreground">
-          Live team leaderboard · shared across everyone today
+          Live team leaderboard · resets daily
         </p>
       </div>
 
@@ -456,9 +464,26 @@ function Leaderboard({
         </div>
       )}
 
+      {/* Day tabs */}
+      <div className="grid grid-cols-2 gap-2 bg-muted p-1 rounded-xl">
+        {(["today", "yesterday"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`py-2 rounded-lg font-semibold text-sm capitalize transition ${
+              tab === t
+                ? "bg-card text-foreground shadow-[var(--shadow-card)]"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-[var(--shadow-card)]">
         <div className="px-5 py-3 border-b border-border flex items-center justify-between">
-          <h3 className="font-semibold">Today's Top Players</h3>
+          <h3 className="font-semibold">{tab === "today" ? "Today's" : "Yesterday's"} Top Players</h3>
           <span className="text-xs text-muted-foreground">{rows.length} {rows.length === 1 ? "score" : "scores"}</span>
         </div>
         {loading ? (
