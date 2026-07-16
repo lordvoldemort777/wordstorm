@@ -23,14 +23,48 @@ export const Route = createFileRoute("/")({
 });
 
 type Phase = "start" | "game" | "leaderboard";
-type ScoreRow = { id: string; nickname: string; score: number; play_date: string; created_at: string };
+type ScoreRow = {
+  id: string;
+  nickname: string;
+  score: number;
+  play_date: string;
+  created_at: string;
+  words_found: number | null;
+  room_code: string | null;
+};
+
+const ROOM_RE = /^WS-[A-Z0-9]{4}$/;
+const ROOM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
+
+function generateRoomCode(): string {
+  let s = "WS-";
+  for (let i = 0; i < 4; i++) {
+    s += ROOM_ALPHABET[Math.floor(Math.random() * ROOM_ALPHABET.length)];
+  }
+  return s;
+}
 
 function WordstormPage() {
   const [phase, setPhase] = useState<Phase>("start");
   const [nickname, setNickname] = useState("");
+  const [roomCode, setRoomCode] = useState<string | null>(null);
   const [finalScore, setFinalScore] = useState(0);
+  const [finalWords, setFinalWords] = useState(0);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
   const [revealedAnchor, setRevealedAnchor] = useState<string>("");
+
+  // Auto-detect ?room= on load
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("room");
+    if (code) {
+      const normalized = code.toUpperCase().trim();
+      if (ROOM_RE.test(normalized)) {
+        setRoomCode(normalized);
+      }
+    }
+  }, []);
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center px-4 py-8">
@@ -39,14 +73,18 @@ function WordstormPage() {
           <StartScreen
             nickname={nickname}
             setNickname={setNickname}
+            roomCode={roomCode}
+            setRoomCode={setRoomCode}
             onPlay={() => setPhase("game")}
           />
         )}
         {phase === "game" && (
           <GameScreen
             nickname={nickname.trim()}
-            onFinish={(score, id, anchor) => {
+            roomCode={roomCode}
+            onFinish={(score, words, id, anchor) => {
               setFinalScore(score);
+              setFinalWords(words);
               setSubmittedId(id);
               setRevealedAnchor(anchor);
               setPhase("leaderboard");
@@ -57,7 +95,9 @@ function WordstormPage() {
           <Leaderboard
             myId={submittedId}
             myScore={finalScore}
+            myWords={finalWords}
             myName={nickname.trim()}
+            roomCode={roomCode}
             anchor={revealedAnchor}
             onPlayAgain={() => setPhase("game")}
           />
@@ -70,13 +110,77 @@ function WordstormPage() {
 function StartScreen({
   nickname,
   setNickname,
+  roomCode,
+  setRoomCode,
   onPlay,
 }: {
   nickname: string;
   setNickname: (s: string) => void;
+  roomCode: string | null;
+  setRoomCode: (s: string | null) => void;
   onPlay: () => void;
 }) {
   const canPlay = nickname.trim().length > 0;
+  const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [showJoin, setShowJoin] = useState(false);
+  const [joinInput, setJoinInput] = useState("");
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const inviteLink = useMemo(() => {
+    if (!createdCode || typeof window === "undefined") return "";
+    const url = new URL(window.location.href);
+    url.searchParams.set("room", createdCode);
+    return url.toString();
+  }, [createdCode]);
+
+  const handleCreate = () => {
+    const code = generateRoomCode();
+    setCreatedCode(code);
+    setRoomCode(code);
+    setShowJoin(false);
+  };
+
+  const handleJoin = (e: FormEvent) => {
+    e.preventDefault();
+    const normalized = joinInput.toUpperCase().trim().replace(/\s+/g, "");
+    const withPrefix = normalized.startsWith("WS-") ? normalized : `WS-${normalized}`;
+    if (!ROOM_RE.test(withPrefix)) {
+      setJoinError("Enter a valid code like WS-4K9F");
+      return;
+    }
+    setJoinError(null);
+    setRoomCode(withPrefix);
+    setShowJoin(false);
+    setCreatedCode(null);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("room", withPrefix);
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
+
+  const copyLink = async () => {
+    if (!inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore
+    }
+  };
+
+  const leaveRoom = () => {
+    setRoomCode(null);
+    setCreatedCode(null);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("room");
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
+
   return (
     <div className="bg-card rounded-3xl p-8 sm:p-10 shadow-[var(--shadow-card)] border border-border/60">
       <div className="text-center space-y-3">
@@ -89,7 +193,108 @@ function StartScreen({
         </p>
       </div>
 
-      <div className="mt-6 rounded-xl border border-border/60 bg-muted/60 px-4 py-3">
+      {/* Team rooms */}
+      <div className="mt-8 space-y-3">
+        {roomCode ? (
+          <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+                In room
+              </div>
+              <div className="text-xl font-bold tracking-widest text-primary truncate">{roomCode}</div>
+            </div>
+            <button
+              type="button"
+              onClick={leaveRoom}
+              className="text-xs px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted transition"
+            >
+              Leave
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              type="button"
+              onClick={handleCreate}
+              className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-semibold shadow-[var(--shadow-tile-active)] hover:brightness-110 active:translate-y-px transition"
+            >
+              Create a team room
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowJoin((v) => !v);
+                setJoinError(null);
+              }}
+              className="flex-1 py-3 rounded-xl bg-transparent text-foreground font-semibold border-2 border-primary/60 hover:bg-primary/5 active:translate-y-px transition"
+            >
+              Join a room
+            </button>
+          </div>
+        )}
+
+        {createdCode && (
+          <div className="rounded-2xl border border-border bg-muted/40 p-5 space-y-4">
+            <div className="text-center">
+              <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+                Your room code
+              </div>
+              <div className="text-3xl sm:text-4xl font-bold tracking-[0.3em] text-primary">
+                {createdCode}
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={copyLink}
+                className="flex-1 py-2.5 rounded-xl bg-card border border-border font-medium hover:bg-muted transition"
+              >
+                {copied ? "✓ Copied!" : "Copy invite link"}
+              </button>
+            </div>
+            <p className="text-xs text-center text-muted-foreground">
+              Share the link — teammates who open it join automatically.
+            </p>
+          </div>
+        )}
+
+        {showJoin && !roomCode && (
+          <form onSubmit={handleJoin} className="rounded-2xl border border-border bg-muted/40 p-4 space-y-2">
+            <label className="block text-xs uppercase tracking-wider font-semibold text-muted-foreground" htmlFor="join">
+              Enter room code
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="join"
+                autoFocus
+                value={joinInput}
+                onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
+                placeholder="WS-4K9F"
+                maxLength={7}
+                className="flex-1 px-3 py-2.5 rounded-xl bg-card border border-border text-foreground font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:brightness-110 active:translate-y-px transition"
+              >
+                Join
+              </button>
+            </div>
+            {joinError && <p className="text-xs text-destructive">{joinError}</p>}
+          </form>
+        )}
+      </div>
+
+      {/* Divider */}
+      <div className="mt-6 mb-4 flex items-center gap-3">
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">
+          {roomCode ? "enter your nickname" : "or play solo"}
+        </span>
+        <div className="flex-1 h-px bg-border" />
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-muted/60 px-4 py-3">
         <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center mb-2">
           Scoring by word length
         </div>
@@ -104,7 +309,7 @@ function StartScreen({
       </div>
 
       <form
-        className="mt-8 space-y-3"
+        className="mt-6 space-y-3"
         onSubmit={(e) => {
           e.preventDefault();
           if (canPlay) onPlay();
@@ -115,7 +320,6 @@ function StartScreen({
         </label>
         <input
           id="nick"
-          autoFocus
           maxLength={20}
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
@@ -127,7 +331,7 @@ function StartScreen({
           disabled={!canPlay}
           className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-lg shadow-[var(--shadow-tile-active)] hover:brightness-110 active:translate-y-px disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition"
         >
-          Play
+          {roomCode ? `Play in ${roomCode}` : "Play"}
         </button>
       </form>
     </div>
@@ -136,10 +340,12 @@ function StartScreen({
 
 function GameScreen({
   nickname,
+  roomCode,
   onFinish,
 }: {
   nickname: string;
-  onFinish: (score: number, id: string | null, anchor: string) => void;
+  roomCode: string | null;
+  onFinish: (score: number, words: number, id: string | null, anchor: string) => void;
 }) {
   const boardKey = useMemo(() => todayKey(), []);
   const { tiles: board, anchor } = useMemo(() => generateBoard(boardKey), [boardKey]);
@@ -153,16 +359,14 @@ function GameScreen({
   const submittedRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Compute which board letter slots are "covered" by the current input
   const usedIndices = useMemo(() => {
     const used: number[] = [];
     const cleaned = input.toLowerCase().replace(/[^a-z]/g, "");
     const taken = new Set<number>();
     for (const ch of cleaned) {
       const idx = board.findIndex((t, i) => !taken.has(i) && t.toLowerCase() === ch);
-      if (idx === -1) {
-        used.push(-1);
-      } else {
+      if (idx === -1) used.push(-1);
+      else {
         taken.add(idx);
         used.push(idx);
       }
@@ -170,19 +374,16 @@ function GameScreen({
     return new Set(used.filter((i) => i >= 0));
   }, [input, board]);
 
-  // Timer
   useEffect(() => {
     if (timeLeft <= 0) return;
     const t = setInterval(() => setTimeLeft((s) => s - 1), 1000);
     return () => clearInterval(t);
   }, [timeLeft]);
 
-  // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // End of round — submit
   useEffect(() => {
     if (timeLeft > 0 || submittedRef.current) return;
     submittedRef.current = true;
@@ -190,17 +391,23 @@ function GameScreen({
       try {
         const { data, error } = await supabase
           .from("scores")
-          .insert({ nickname: nickname.slice(0, 20), score, play_date: boardKey })
+          .insert({
+            nickname: nickname.slice(0, 20),
+            score,
+            play_date: boardKey,
+            words_found: found.length,
+            room_code: roomCode,
+          })
           .select("id")
           .single();
         if (error) throw error;
-        onFinish(score, data?.id ?? null, anchor);
+        onFinish(score, found.length, data?.id ?? null, anchor);
       } catch (e) {
         console.error(e);
-        onFinish(score, null, anchor);
+        onFinish(score, found.length, null, anchor);
       }
     })();
-  }, [timeLeft, score, nickname, boardKey, onFinish, anchor]);
+  }, [timeLeft, score, nickname, boardKey, onFinish, anchor, found.length, roomCode]);
 
   const flash = (kind: "valid" | "invalid", msg: string) => {
     setFeedback({ kind, msg });
@@ -223,12 +430,6 @@ function GameScreen({
     setInput("");
   };
 
-  const shuffle = () => {
-    // visual shuffle of tile order is intentionally not seeded — purely cosmetic
-    // (we leave the board fixed to keep daily comparability; do nothing here)
-  };
-  void shuffle;
-
   const mm = String(Math.floor(timeLeft / 60)).padStart(1, "0");
   const ss = String(timeLeft % 60).padStart(2, "0");
   const timeUrgent = timeLeft <= 10;
@@ -237,7 +438,11 @@ function GameScreen({
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {roomCode && (
+        <div className="text-center text-xs uppercase tracking-wider text-muted-foreground">
+          Room <span className="font-bold text-primary tracking-widest">{roomCode}</span>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-3">
         <div className="px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium text-muted-foreground truncate max-w-[40%]">
           {nickname}
@@ -250,7 +455,6 @@ function GameScreen({
         </div>
       </div>
 
-      {/* Letter bank — 3x3 (tap to append) */}
       <div className="grid grid-cols-3 gap-3 select-none max-w-sm mx-auto w-full">
         {board.map((ch, i) => {
           const active = usedIndices.has(i);
@@ -276,7 +480,6 @@ function GameScreen({
         })}
       </div>
 
-      {/* Mobile helper buttons */}
       <div className="flex gap-2 max-w-sm mx-auto w-full">
         <button
           type="button"
@@ -302,7 +505,6 @@ function GameScreen({
         </button>
       </div>
 
-      {/* Typing input */}
       <form onSubmit={submit} className="space-y-2">
         <div
           className={`bg-card border rounded-2xl flex items-center gap-2 px-2 py-2 transition ${
@@ -345,7 +547,6 @@ function GameScreen({
         </div>
       </form>
 
-      {/* Scoring legend */}
       <div className="bg-card/60 border border-border/60 rounded-xl px-3 py-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
@@ -364,7 +565,6 @@ function GameScreen({
         </div>
       </div>
 
-      {/* Found words */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-baseline justify-between mb-2">
           <h3 className="text-sm font-semibold text-foreground/80">Words found</h3>
@@ -389,13 +589,17 @@ function GameScreen({
 function Leaderboard({
   myId,
   myScore,
+  myWords,
   myName,
+  roomCode,
   anchor,
   onPlayAgain,
 }: {
   myId: string | null;
   myScore: number;
+  myWords: number;
   myName: string;
+  roomCode: string | null;
   anchor: string;
   onPlayAgain: () => void;
 }) {
@@ -406,7 +610,8 @@ function Leaderboard({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }, []);
   const [tab, setTab] = useState<"today" | "yesterday">("today");
-  const day = tab === "today" ? today : yesterday;
+  // Room mode always shows today only.
+  const day = roomCode ? today : tab === "today" ? today : yesterday;
   const [rows, setRows] = useState<ScoreRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -414,28 +619,36 @@ function Leaderboard({
     let mounted = true;
     setLoading(true);
     const fetchRows = async () => {
-      const { data } = await supabase
+      let query = supabase
         .from("scores")
-        .select("id,nickname,score,play_date,created_at")
+        .select("id,nickname,score,play_date,created_at,words_found,room_code")
         .eq("play_date", day)
         .order("score", { ascending: false })
         .order("created_at", { ascending: true })
         .limit(50);
+      if (roomCode) query = query.eq("room_code", roomCode);
+      else query = query.is("room_code", null);
+      const { data } = await query;
       if (mounted) {
         setRows((data ?? []) as ScoreRow[]);
         setLoading(false);
       }
     };
     fetchRows();
+    const channelName = roomCode ? `scores-live-${roomCode}-${day}` : `scores-live-${day}`;
     const channel = supabase
-      .channel(`scores-live-${day}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "scores", filter: `play_date=eq.${day}` }, () => fetchRows())
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "scores", filter: `play_date=eq.${day}` },
+        () => fetchRows(),
+      )
       .subscribe();
     return () => {
       mounted = false;
       supabase.removeChannel(channel);
     };
-  }, [day]);
+  }, [day, roomCode]);
 
   return (
     <div className="space-y-5">
@@ -445,11 +658,15 @@ function Leaderboard({
         </div>
         <h2 className="text-4xl font-bold">You scored {myScore}</h2>
         <p className="text-sm text-muted-foreground">
-          Live team leaderboard · resets daily
+          {roomCode ? (
+            <>Room <span className="font-bold text-primary tracking-widest">{roomCode}</span> · live team board</>
+          ) : (
+            <>Live team leaderboard · resets daily</>
+          )}
         </p>
+        <p className="text-xs text-muted-foreground">You found {myWords} {myWords === 1 ? "word" : "words"}.</p>
       </div>
 
-      {/* Reveal the 9-letter word */}
       {anchor && (
         <div className="bg-card border border-border rounded-2xl p-5 text-center shadow-[var(--shadow-card)]">
           <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-2">
@@ -464,32 +681,43 @@ function Leaderboard({
         </div>
       )}
 
-      {/* Day tabs */}
-      <div className="grid grid-cols-2 gap-2 bg-muted p-1 rounded-xl">
-        {(["today", "yesterday"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`py-2 rounded-lg font-semibold text-sm capitalize transition ${
-              tab === t
-                ? "bg-card text-foreground shadow-[var(--shadow-card)]"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      {!roomCode && (
+        <div className="grid grid-cols-2 gap-2 bg-muted p-1 rounded-xl">
+          {(["today", "yesterday"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`py-2 rounded-lg font-semibold text-sm capitalize transition ${
+                tab === t
+                  ? "bg-card text-foreground shadow-[var(--shadow-card)]"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-[var(--shadow-card)]">
         <div className="px-5 py-3 border-b border-border flex items-center justify-between">
-          <h3 className="font-semibold">{tab === "today" ? "Today's" : "Yesterday's"} Top Players</h3>
-          <span className="text-xs text-muted-foreground">{rows.length} {rows.length === 1 ? "score" : "scores"}</span>
+          <h3 className="font-semibold">
+            {roomCode
+              ? `Room ${roomCode} — Today`
+              : tab === "today"
+                ? "Today's Top Players"
+                : "Yesterday's Top Players"}
+          </h3>
+          <span className="text-xs text-muted-foreground">
+            {rows.length} {rows.length === 1 ? "score" : "scores"}
+          </span>
         </div>
         {loading ? (
           <div className="p-8 text-center text-muted-foreground text-sm">Loading…</div>
         ) : rows.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">No scores {tab === "today" ? "yet today" : "for yesterday"}.</div>
+          <div className="p-8 text-center text-muted-foreground text-sm">
+            {roomCode ? "No scores in this room yet." : `No scores ${tab === "today" ? "yet today" : "for yesterday"}.`}
+          </div>
         ) : (
           <ol className="divide-y divide-border">
             {rows.map((r, i) => {
@@ -519,6 +747,9 @@ function Leaderboard({
                         </span>
                       )}
                     </div>
+                    <div className="text-xs text-muted-foreground tabular-nums">
+                      {r.words_found ?? 0} {(r.words_found ?? 0) === 1 ? "word" : "words"}
+                    </div>
                   </div>
                   <div className="font-bold text-lg tabular-nums">{r.score}</div>
                 </li>
@@ -535,7 +766,7 @@ function Leaderboard({
         Play again
       </button>
       <p className="text-center text-xs text-muted-foreground">
-        Hi {myName || "player"} — your score has been added to the team board.
+        Hi {myName || "player"} — your score has been added to the {roomCode ? "room" : "team"} board.
       </p>
     </div>
   );
