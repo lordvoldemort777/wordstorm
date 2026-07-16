@@ -20,21 +20,27 @@ export type Database = {
           id: string
           nickname: string
           play_date: string
+          room_code: string | null
           score: number
+          words_found: number
         }
         Insert: {
           created_at?: string
           id?: string
           nickname: string
           play_date?: string
+          room_code?: string | null
           score: number
+          words_found?: number
         }
         Update: {
           created_at?: string
           id?: string
           nickname?: string
           play_date?: string
+          room_code?: string | null
           score?: number
+          words_found?: number
         }
         Relationships: []
       }
