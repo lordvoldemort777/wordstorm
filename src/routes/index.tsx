@@ -182,7 +182,35 @@ function StartScreen({
   };
 
   return (
+    <div className="space-y-4">
+
+      {/* Hero explainer row */}
+      <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-2">
+        {[
+          { icon: "⏱️", label: "90 seconds", sub: "per round" },
+          { icon: "🔤", label: "9 letters", sub: "one shared grid" },
+          { icon: "🏆", label: "Live team scores", sub: "real-time board" },
+        ].map((it) => (
+          <div
+            key={it.label}
+            className="rounded-xl bg-card/80 border border-border/60 px-3 py-2 flex items-center gap-2 min-[480px]:flex-col min-[480px]:text-center min-[480px]:gap-1"
+          >
+            <span className="text-xl shrink-0" aria-hidden>{it.icon}</span>
+            <div className="min-w-0 leading-tight">
+              <div className="text-xs font-semibold text-foreground truncate">{it.label}</div>
+              <div className="text-[11px] text-muted-foreground truncate">{it.sub}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Hidden word teaser */}
+      <div className="rounded-xl bg-accent/60 border border-accent px-4 py-2.5 text-center text-sm text-accent-foreground">
+        <span className="font-semibold">All 9 letters form one hidden word</span> — find it for <span className="font-bold">25 points</span>
+      </div>
+
     <div className="bg-card rounded-3xl p-8 sm:p-10 shadow-[var(--shadow-card)] border border-border/60">
+
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent text-accent-foreground text-xs font-medium uppercase tracking-wider">
           <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> Daily Puzzle
@@ -294,11 +322,12 @@ function StartScreen({
         <div className="flex-1 h-px bg-border" />
       </div>
 
-      <div className="rounded-xl border border-border/60 bg-muted/60 px-4 py-3">
-        <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center mb-2">
-          Scoring by word length
-        </div>
-        <div className="grid grid-cols-7 gap-1 text-center">
+      <details className="group rounded-xl border border-border/60 bg-muted/60 px-4 py-2">
+        <summary className="cursor-pointer list-none flex items-center justify-between text-xs uppercase tracking-wider font-semibold text-muted-foreground">
+          <span>How scoring works</span>
+          <span className="transition-transform group-open:rotate-180" aria-hidden>▾</span>
+        </summary>
+        <div className="grid grid-cols-7 gap-1 text-center mt-3">
           {SCORE_TABLE.map((s) => (
             <div key={s.len} className="rounded-md bg-card border border-border/60 py-1">
               <div className="text-[10px] text-muted-foreground font-mono">{s.len}</div>
@@ -306,7 +335,8 @@ function StartScreen({
             </div>
           ))}
         </div>
-      </div>
+      </details>
+
 
       <form
         className="mt-6 space-y-3"
@@ -335,7 +365,9 @@ function StartScreen({
         </button>
       </form>
     </div>
+    </div>
   );
+
 }
 
 function GameScreen({
