@@ -363,7 +363,9 @@ function StartScreen({
         </button>
       </form>
     </div>
+    </div>
   );
+
 }
 
 function GameScreen({
