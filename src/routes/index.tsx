@@ -51,6 +51,7 @@ function WordstormPage() {
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [finalScore, setFinalScore] = useState(0);
   const [finalWords, setFinalWords] = useState(0);
+  const [foundWords, setFoundWords] = useState<string[]>([]);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
   const [revealedAnchor, setRevealedAnchor] = useState<string>("");
 
@@ -83,13 +84,23 @@ function WordstormPage() {
           <GameScreen
             nickname={nickname.trim()}
             roomCode={roomCode}
-            onFinish={(score, words, id, anchor) => {
+            onFinish={(score, words, id, anchor, wordList) => {
               setFinalScore(score);
               setFinalWords(words);
+              setFoundWords(wordList);
               setSubmittedId(id);
               setRevealedAnchor(anchor);
-              setPhase("leaderboard");
+              setPhase("results");
             }}
+          />
+        )}
+        {phase === "results" && (
+          <ResultsScreen
+            score={finalScore}
+            words={foundWords}
+            anchor={revealedAnchor}
+            roomCode={roomCode}
+            onSeeLeaderboard={() => setPhase("leaderboard")}
           />
         )}
         {phase === "leaderboard" && (
