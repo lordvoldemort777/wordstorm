@@ -181,7 +181,9 @@ function StartScreen({
     }
   };
 
+  return (
     <div className="space-y-4">
+
       {/* Hero explainer row */}
       <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-2">
         {[
