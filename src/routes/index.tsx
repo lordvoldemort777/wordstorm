@@ -22,7 +22,7 @@ export const Route = createFileRoute("/")({
   component: WordstormPage,
 });
 
-type Phase = "start" | "game" | "leaderboard";
+type Phase = "start" | "game" | "results" | "leaderboard";
 type ScoreRow = {
   id: string;
   nickname: string;
