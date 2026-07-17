@@ -445,10 +445,10 @@ function GameScreen({
           .select("id")
           .single();
         if (error) throw error;
-        onFinish(score, found.length, data?.id ?? null, anchor);
+        onFinish(score, found.length, data?.id ?? null, anchor, found);
       } catch (e) {
         console.error(e);
-        onFinish(score, found.length, null, anchor);
+        onFinish(score, found.length, null, anchor, found);
       }
     })();
   }, [timeLeft, score, nickname, boardKey, onFinish, anchor, found.length, roomCode]);
