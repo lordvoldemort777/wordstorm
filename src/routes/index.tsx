@@ -815,3 +815,181 @@ function Leaderboard({
     </div>
   );
 }
+
+function emojiForLen(len: number): string {
+  if (len === 9) return "⭐";
+  if (len >= 7) return "🟥";
+  if (len === 6) return "🟧";
+  if (len === 5) return "🟨";
+  if (len === 4) return "🟩";
+  return "🟦";
+}
+
+function formatDate(): string {
+  const d = new Date();
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function useMidnightCountdown(): string {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const d = new Date(now);
+  const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
+  const diff = Math.max(0, midnight.getTime() - now);
+  const h = Math.floor(diff / 3_600_000);
+  const m = Math.floor((diff % 3_600_000) / 60_000);
+  const s = Math.floor((diff % 60_000) / 1000);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function ResultsScreen({
+  score,
+  words,
+  anchor,
+  roomCode,
+  onSeeLeaderboard,
+}: {
+  score: number;
+  words: string[];
+  anchor: string;
+  roomCode: string | null;
+  onSeeLeaderboard: () => void;
+}) {
+  const countdown = useMidnightCountdown();
+  const foundAnchor = useMemo(
+    () => words.some((w) => w.toLowerCase() === anchor.toLowerCase()),
+    [words, anchor],
+  );
+  const sorted = useMemo(
+    () => [...words].sort((a, b) => b.length - a.length || a.localeCompare(b)),
+    [words],
+  );
+  const bestWord = useMemo(() => {
+    if (words.length === 0) return null;
+    let best = words[0];
+    let bestPts = scoreFor(best.length);
+    for (const w of words) {
+      const p = scoreFor(w.length);
+      if (p > bestPts || (p === bestPts && w.length > best.length)) {
+        best = w;
+        bestPts = p;
+      }
+    }
+    return best;
+  }, [words]);
+
+  const shareText = useMemo(() => {
+    const emojis = sorted.map((w) => emojiForLen(w.length)).join("");
+    return [
+      `Wordstorm ${formatDate()}`,
+      `Score: ${score} pts · ${words.length} words found`,
+      emojis,
+      `wordpuzzle-teams.lovable.app`,
+    ].join("\n");
+  }, [sorted, score, words.length]);
+
+  const handleShare = async () => {
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ text: shareText });
+        return;
+      } catch {
+        // fall through to clipboard
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(shareText);
+      toast.success("Score copied! Paste it into Slack or WhatsApp.");
+    } catch {
+      toast.error("Couldn't copy to clipboard.");
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="text-center space-y-2">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent text-accent-foreground text-xs font-medium uppercase tracking-wider">
+          Round Over
+        </div>
+        <div className="text-6xl sm:text-7xl font-bold tabular-nums text-foreground">
+          {score} <span className="text-2xl sm:text-3xl text-muted-foreground font-semibold">pts</span>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {words.length} {words.length === 1 ? "word" : "words"} found
+          {bestWord && (
+            <>
+              {" · best word: "}
+              <span className="font-semibold text-foreground uppercase tracking-wider">{bestWord}</span>
+            </>
+          )}
+        </p>
+      </div>
+
+      {anchor && (
+        <div
+          className={`rounded-2xl p-4 text-center border ${
+            foundAnchor
+              ? "bg-success/10 border-success text-foreground"
+              : "bg-card border-border"
+          }`}
+        >
+          {foundAnchor ? (
+            <>
+              <div className="text-sm font-semibold text-success">⭐ You found {anchor.toUpperCase()}! +25 pts</div>
+            </>
+          ) : (
+            <>
+              <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+                Today's hidden word was
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold tracking-[0.25em] uppercase text-primary">
+                {anchor}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <button
+        onClick={handleShare}
+        className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-lg shadow-[var(--shadow-tile-active)] hover:brightness-110 active:translate-y-px transition"
+      >
+        Share your score
+      </button>
+
+      <div className="bg-card border border-border rounded-2xl p-4">
+        <div className="flex items-baseline justify-between mb-3">
+          <h3 className="text-sm font-semibold text-foreground/80">Your words</h3>
+          <span className="text-xs text-muted-foreground">{words.length}</span>
+        </div>
+        {sorted.length === 0 ? (
+          <p className="text-sm text-muted-foreground/60">No words found this round.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {sorted.map((w) => (
+              <li key={w} className="flex items-center justify-between py-2">
+                <span className="font-semibold uppercase tracking-wider">{w}</span>
+                <span className="text-sm text-muted-foreground tabular-nums">{scoreFor(w.length)} pts</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <button
+        onClick={onSeeLeaderboard}
+        className="w-full py-3 rounded-xl bg-card border border-border font-semibold hover:bg-muted active:translate-y-px transition"
+      >
+        See {roomCode ? `room ${roomCode}` : "today's"} leaderboard →
+      </button>
+
+      <div className="text-center text-sm text-muted-foreground">
+        Come back tomorrow for the next puzzle
+        <div className="mt-1 font-mono text-lg tabular-nums text-foreground">{countdown}</div>
+      </div>
+    </div>
+  );
+}
