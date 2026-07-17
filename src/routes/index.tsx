@@ -389,7 +389,7 @@ function GameScreen({
 }: {
   nickname: string;
   roomCode: string | null;
-  onFinish: (score: number, words: number, id: string | null, anchor: string) => void;
+  onFinish: (score: number, words: number, id: string | null, anchor: string, wordList: string[]) => void;
 }) {
   const boardKey = useMemo(() => todayKey(), []);
   const { tiles: board, anchor } = useMemo(() => generateBoard(boardKey), [boardKey]);
