@@ -320,11 +320,12 @@ function StartScreen({
         <div className="flex-1 h-px bg-border" />
       </div>
 
-      <div className="rounded-xl border border-border/60 bg-muted/60 px-4 py-3">
-        <div className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground text-center mb-2">
-          Scoring by word length
-        </div>
-        <div className="grid grid-cols-7 gap-1 text-center">
+      <details className="group rounded-xl border border-border/60 bg-muted/60 px-4 py-2">
+        <summary className="cursor-pointer list-none flex items-center justify-between text-xs uppercase tracking-wider font-semibold text-muted-foreground">
+          <span>How scoring works</span>
+          <span className="transition-transform group-open:rotate-180" aria-hidden>▾</span>
+        </summary>
+        <div className="grid grid-cols-7 gap-1 text-center mt-3">
           {SCORE_TABLE.map((s) => (
             <div key={s.len} className="rounded-md bg-card border border-border/60 py-1">
               <div className="text-[10px] text-muted-foreground font-mono">{s.len}</div>
@@ -332,7 +333,8 @@ function StartScreen({
             </div>
           ))}
         </div>
-      </div>
+      </details>
+
 
       <form
         className="mt-6 space-y-3"
