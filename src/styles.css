@@ -68,9 +68,14 @@
     background-image:
       radial-gradient(ellipse 800px 500px at 0% 0%, oklch(0.96 0.06 35 / 0.5), transparent),
       radial-gradient(ellipse 700px 600px at 100% 100%, oklch(0.94 0.05 60 / 0.45), transparent);
-    background-attachment: fixed;
+  background-attachment: fixed;
   }
   h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; }
+}
+
+/* Hide the Lovable "Edit with Lovable" badge injected on published deployments. */
+#lovable-badge {
+  display: none !important;
 }
 
 @keyframes shake {
