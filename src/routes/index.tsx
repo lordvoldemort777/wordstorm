@@ -400,8 +400,11 @@ function GameScreen({
   const [found, setFound] = useState<string[]>([]);
   const [timeLeft, setTimeLeft] = useState(90);
   const [feedback, setFeedback] = useState<{ kind: "valid" | "invalid"; msg: string } | null>(null);
+  const [showTip, setShowTip] = useState(false);
+  const [celebrateWord, setCelebrateWord] = useState<string | null>(null);
   const submittedRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
 
   const usedIndices = useMemo(() => {
     const used: number[] = [];
