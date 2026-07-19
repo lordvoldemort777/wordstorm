@@ -524,11 +524,21 @@ function GameScreen({
 
   return (
     <div className="space-y-5">
+      {showTip && (
+        <div
+          role="status"
+          className="animate-banner-in rounded-xl bg-foreground text-background px-4 py-2.5 text-sm text-center shadow-lg"
+        >
+          <span className="mr-1" aria-hidden>💡</span>
+          <span className="font-semibold">Tip:</span> All 9 letters form one hidden word — find it for 25 points!
+        </div>
+      )}
       {roomCode && (
         <div className="text-center text-xs uppercase tracking-wider text-muted-foreground">
           Room <span className="font-bold text-primary tracking-widest">{roomCode}</span>
         </div>
       )}
+
       <div className="flex items-center justify-between gap-3">
         <div className="px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium text-muted-foreground truncate max-w-[40%]">
           {nickname}
