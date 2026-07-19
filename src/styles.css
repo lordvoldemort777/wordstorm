@@ -100,3 +100,17 @@
   100% { transform: scale(1); }
 }
 .animate-pop { animation: pop 0.15s ease-out; }
+
+@keyframes celebrate-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 oklch(0.82 0.17 85 / 0.6); }
+  40% { transform: scale(1.18); box-shadow: 0 0 0 12px oklch(0.82 0.17 85 / 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 oklch(0.82 0.17 85 / 0); }
+}
+.animate-celebrate { animation: celebrate-pulse 0.9s ease-out; }
+
+@keyframes banner-slide-down {
+  0% { opacity: 0; transform: translateY(-12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-banner-in { animation: banner-slide-down 0.35s ease-out; }
+
