@@ -576,6 +576,11 @@ function GameScreen({
         })}
       </div>
 
+      <p className="text-center text-[11px] text-muted-foreground/80 -mt-2">
+        <span className="text-primary">★</span> 9-letter word = 25 pts
+      </p>
+
+
       <div className="flex gap-2 max-w-sm mx-auto w-full">
         <button
           type="button"
