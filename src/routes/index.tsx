@@ -404,6 +404,17 @@ function GameScreen({
   const [celebrateWord, setCelebrateWord] = useState<string | null>(null);
   const submittedRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [order, setOrder] = useState<number[]>(() => board.map((_, i) => i));
+  const shuffleTiles = () => {
+    setOrder((prev) => {
+      const next = [...prev];
+      for (let i = next.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [next[i], next[j]] = [next[j], next[i]];
+      }
+      return next;
+    });
+  };
 
 
   const usedIndices = useMemo(() => {
