@@ -675,11 +675,22 @@ function GameScreen({
           <p className="text-sm text-muted-foreground/60">None yet — go!</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
-            {found.map((w) => (
-              <span key={w} className="px-2.5 py-1 rounded-lg bg-accent text-accent-foreground text-sm font-medium">
-                {w} <span className="opacity-60 text-xs">+{scoreFor(w.length)}</span>
-              </span>
-            ))}
+            {found.map((w) => {
+              const isCelebrate = w === celebrateWord;
+              return (
+                <span
+                  key={w}
+                  className={`px-2.5 py-1 rounded-lg text-sm font-medium inline-block ${
+                    w.length === 9
+                      ? "bg-primary text-primary-foreground ring-2 ring-primary/40"
+                      : "bg-accent text-accent-foreground"
+                  } ${isCelebrate ? "animate-celebrate" : ""}`}
+                >
+                  {w.length === 9 && <span className="mr-1" aria-hidden>★</span>}
+                  {w} <span className="opacity-70 text-xs">+{scoreFor(w.length)}</span>
+                </span>
+              );
+            })}
           </div>
         )}
       </div>
