@@ -404,6 +404,17 @@ function GameScreen({
   const [celebrateWord, setCelebrateWord] = useState<string | null>(null);
   const submittedRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [order, setOrder] = useState<number[]>(() => board.map((_, i) => i));
+  const shuffleTiles = () => {
+    setOrder((prev) => {
+      const next = [...prev];
+      for (let i = next.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [next[i], next[j]] = [next[j], next[i]];
+      }
+      return next;
+    });
+  };
 
 
   const usedIndices = useMemo(() => {
@@ -552,7 +563,8 @@ function GameScreen({
       </div>
 
       <div className="grid grid-cols-3 gap-3 select-none max-w-sm mx-auto w-full">
-        {board.map((ch, i) => {
+        {order.map((i) => {
+          const ch = board[i];
           const active = usedIndices.has(i);
           const disabled = !ready || timeLeft <= 0 || input.length >= 9;
           return (
@@ -576,9 +588,20 @@ function GameScreen({
         })}
       </div>
 
-      <p className="text-center text-[11px] text-muted-foreground/80 -mt-2">
-        <span className="text-primary">★</span> 9-letter word = 25 pts
-      </p>
+      <div className="flex items-center justify-center gap-3 -mt-1">
+        <button
+          type="button"
+          onClick={shuffleTiles}
+          disabled={timeLeft <= 0}
+          className="px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium text-foreground hover:bg-card active:translate-y-px disabled:opacity-40 transition inline-flex items-center gap-1.5"
+          aria-label="Shuffle letters"
+        >
+          <span aria-hidden>🔀</span> Shuffle
+        </button>
+        <p className="text-[11px] text-muted-foreground/80">
+          <span className="text-primary">★</span> 9-letter word = 25 pts
+        </p>
+      </div>
 
 
       <div className="flex gap-2 max-w-sm mx-auto w-full">
