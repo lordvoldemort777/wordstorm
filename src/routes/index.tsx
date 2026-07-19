@@ -429,7 +429,24 @@ function GameScreen({
 
   useEffect(() => {
     inputRef.current?.focus();
+    if (typeof window === "undefined") return;
+    try {
+      if (!window.localStorage.getItem("wordstorm_played_before")) {
+        setShowTip(true);
+        const t = setTimeout(() => setShowTip(false), 4000);
+        return () => clearTimeout(t);
+      }
+    } catch {
+      // ignore
+    }
   }, []);
+
+  // Dismiss tip as soon as the player types
+  useEffect(() => {
+    if (showTip && input.length > 0) setShowTip(false);
+  }, [input, showTip]);
+
+
 
   useEffect(() => {
     if (timeLeft > 0 || submittedRef.current) return;
