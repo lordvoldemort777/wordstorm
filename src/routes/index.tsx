@@ -400,8 +400,11 @@ function GameScreen({
   const [found, setFound] = useState<string[]>([]);
   const [timeLeft, setTimeLeft] = useState(90);
   const [feedback, setFeedback] = useState<{ kind: "valid" | "invalid"; msg: string } | null>(null);
+  const [showTip, setShowTip] = useState(false);
+  const [celebrateWord, setCelebrateWord] = useState<string | null>(null);
   const submittedRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
 
   const usedIndices = useMemo(() => {
     const used: number[] = [];
@@ -426,11 +429,35 @@ function GameScreen({
 
   useEffect(() => {
     inputRef.current?.focus();
+    if (typeof window === "undefined") return;
+    try {
+      if (!window.localStorage.getItem("wordstorm_played_before")) {
+        setShowTip(true);
+        const t = setTimeout(() => setShowTip(false), 4000);
+        return () => clearTimeout(t);
+      }
+    } catch {
+      // ignore
+    }
   }, []);
+
+  // Dismiss tip as soon as the player types
+  useEffect(() => {
+    if (showTip && input.length > 0) setShowTip(false);
+  }, [input, showTip]);
+
+
 
   useEffect(() => {
     if (timeLeft > 0 || submittedRef.current) return;
     submittedRef.current = true;
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("wordstorm_played_before", "true");
+      }
+    } catch {
+      // ignore
+    }
     (async () => {
       try {
         const { data, error } = await supabase
@@ -472,7 +499,22 @@ function GameScreen({
     setFound((f) => [w, ...f]);
     flash("valid", `+${pts}`);
     setInput("");
+    if (w.length === 9) {
+      setCelebrateWord(w);
+      setTimeout(() => setCelebrateWord(null), 1200);
+      toast.success("YOU FOUND IT! +25 points", {
+        duration: 3000,
+        style: {
+          background: "linear-gradient(135deg, oklch(0.82 0.17 85), oklch(0.75 0.19 75))",
+          color: "oklch(0.2 0.05 60)",
+          border: "1px solid oklch(0.65 0.19 75)",
+          fontWeight: 700,
+          letterSpacing: "0.05em",
+        },
+      });
+    }
   };
+
 
   const mm = String(Math.floor(timeLeft / 60)).padStart(1, "0");
   const ss = String(timeLeft % 60).padStart(2, "0");
@@ -482,11 +524,21 @@ function GameScreen({
 
   return (
     <div className="space-y-5">
+      {showTip && (
+        <div
+          role="status"
+          className="animate-banner-in rounded-xl bg-foreground text-background px-4 py-2.5 text-sm text-center shadow-lg"
+        >
+          <span className="mr-1" aria-hidden>💡</span>
+          <span className="font-semibold">Tip:</span> All 9 letters form one hidden word — find it for 25 points!
+        </div>
+      )}
       {roomCode && (
         <div className="text-center text-xs uppercase tracking-wider text-muted-foreground">
           Room <span className="font-bold text-primary tracking-widest">{roomCode}</span>
         </div>
       )}
+
       <div className="flex items-center justify-between gap-3">
         <div className="px-3 py-1.5 rounded-full bg-card border border-border text-xs font-medium text-muted-foreground truncate max-w-[40%]">
           {nickname}
@@ -523,6 +575,11 @@ function GameScreen({
           );
         })}
       </div>
+
+      <p className="text-center text-[11px] text-muted-foreground/80 -mt-2">
+        <span className="text-primary">★</span> 9-letter word = 25 pts
+      </p>
+
 
       <div className="flex gap-2 max-w-sm mx-auto w-full">
         <button
@@ -618,11 +675,22 @@ function GameScreen({
           <p className="text-sm text-muted-foreground/60">None yet — go!</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
-            {found.map((w) => (
-              <span key={w} className="px-2.5 py-1 rounded-lg bg-accent text-accent-foreground text-sm font-medium">
-                {w} <span className="opacity-60 text-xs">+{scoreFor(w.length)}</span>
-              </span>
-            ))}
+            {found.map((w) => {
+              const isCelebrate = w === celebrateWord;
+              return (
+                <span
+                  key={w}
+                  className={`px-2.5 py-1 rounded-lg text-sm font-medium inline-block ${
+                    w.length === 9
+                      ? "bg-primary text-primary-foreground ring-2 ring-primary/40"
+                      : "bg-accent text-accent-foreground"
+                  } ${isCelebrate ? "animate-celebrate" : ""}`}
+                >
+                  {w.length === 9 && <span className="mr-1" aria-hidden>★</span>}
+                  {w} <span className="opacity-70 text-xs">+{scoreFor(w.length)}</span>
+                </span>
+              );
+            })}
           </div>
         )}
       </div>
