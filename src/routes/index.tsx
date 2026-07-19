@@ -451,6 +451,13 @@ function GameScreen({
   useEffect(() => {
     if (timeLeft > 0 || submittedRef.current) return;
     submittedRef.current = true;
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("wordstorm_played_before", "true");
+      }
+    } catch {
+      // ignore
+    }
     (async () => {
       try {
         const { data, error } = await supabase
@@ -492,7 +499,22 @@ function GameScreen({
     setFound((f) => [w, ...f]);
     flash("valid", `+${pts}`);
     setInput("");
+    if (w.length === 9) {
+      setCelebrateWord(w);
+      setTimeout(() => setCelebrateWord(null), 1200);
+      toast.success("YOU FOUND IT! +25 points", {
+        duration: 3000,
+        style: {
+          background: "linear-gradient(135deg, oklch(0.82 0.17 85), oklch(0.75 0.19 75))",
+          color: "oklch(0.2 0.05 60)",
+          border: "1px solid oklch(0.65 0.19 75)",
+          fontWeight: 700,
+          letterSpacing: "0.05em",
+        },
+      });
+    }
   };
+
 
   const mm = String(Math.floor(timeLeft / 60)).padStart(1, "0");
   const ss = String(timeLeft % 60).padStart(2, "0");
