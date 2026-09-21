@@ -978,7 +978,7 @@ function ResultsScreen({
       `Wordstorm ${formatDate()}`,
       `Score: ${score} pts · ${words.length} words found`,
       emojis,
-      `wordpuzzle-teams.lovable.app`,
+      `https://wordstorm.lovable.app/`,
     ].join("\n");
   }, [sorted, score, words.length]);
 
