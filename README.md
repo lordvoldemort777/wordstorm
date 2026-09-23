@@ -4,7 +4,8 @@ A daily word puzzle game with a shared, live team leaderboard. Everyone gets the
 
 **Play it live:** https://wordstorm.lovable.app
 
-![WordStorm gameplay](docs/screenshot.png)
+Screenshot of the app's homepage:
+<img width="1512" height="858" alt="Screenshot 2026-09-23 at 3 58 57 PM" src="https://github.com/user-attachments/assets/6810a89c-2d62-40a3-a554-9c471a74a035" />
 
 ## Features
 
