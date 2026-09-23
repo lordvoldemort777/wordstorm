@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790168020317,
+      "tag": "0000_harden_scores_insert_only",
+      "breakpoints": true
+    }
+  ]
+}
