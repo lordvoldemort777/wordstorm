@@ -1,50 +1,67 @@
-# Wordstorm
+# WordStorm
 
-Build a single-page word puzzle game with a shared team leaderboard. Use Lovable Cloud (the built-in backend) so that everyone who opens the link shares one live leaderboard — no login required.
+A daily word puzzle game with a shared, live team leaderboard. Everyone gets the same 4×4 letter board each day, has 90 seconds to find as many words as possible, and competes on one leaderboard. No login needed.
 
-FLOW:
+**Play it live:** https://wordstorm.lovable.app
 
-1. Start screen: game title, a one-line "how to play", a text field for a nickname, and a "Play" button that stays disabled until a nickname is typed.
+![WordStorm gameplay](docs/screenshot.png)
 
-2. Game screen:
+## Features
 
-   - A 4x4 grid of letter tiles. Generate a vowel-rich, playable letter set, and use the SAME board for every player on a given day (seed the board by the date) so scores are fairly comparable.
+- **Daily seeded board**: the 4×4 grid is generated from the date, so every player gets the same vowel-rich board and scores are fairly comparable.
+- **90-second rounds**: tap tiles to build words, with each tile usable once per word and tap-again to deselect.
+- **Word validation**: words must be 3+ letters, in the bundled English word list, and not already found this round.
+- **Length-based scoring**: 3 letters = 1 pt, 4 = 2, 5 = 4, 6 = 6, 7+ = 10.
+- **Instant feedback**: valid words flash green, invalid ones give a quick red shake.
+- **Live shared leaderboard**: scores save automatically when time runs out; the top 3 are highlighted and your own row is emphasized.
+- **No accounts**: just enter a nickname and play.
+- **Mobile-friendly**: clean, minimalist indie-game design with one accent color, rounded tiles and satisfying press states.
 
-   - A countdown timer starting at 90 seconds.
+## How to play
 
-   - The player forms a word by clicking tiles; each click appends that letter and highlights the tile. Each tile can be used once per word — clicking a highlighted tile deselects it. Show the word currently being built, with "Submit" and "Clear" buttons.
+1. Enter a nickname and press **Play**.
+2. Tap tiles to spell a word, then **Submit** (or **Clear** to start over).
+3. Find as many words as you can before the timer hits zero.
+4. Check where you rank on the team leaderboard and **Play again**.
 
-   - Validate submitted words against a common English word list. A word must be at least 3 letters, valid, and not already used this round. (If a full dictionary is impractical, bundle a list of a few thousand common English words.)
+## Tech stack
 
-   - Scoring by length: 3 letters = 1 pt, 4 = 2, 5 = 4, 6 = 6, 7+ = 10. Show the running score and a list of words found so far.
+- React + TypeScript, built with Vite
+- Tailwind CSS
+- Lovable Cloud backend for the shared, real-time leaderboard
+- Built with [Lovable](https://lovable.dev) (AI-assisted development), version-controlled and maintained on GitHub with two-way sync
 
-   - Quick feedback: valid words flash green, invalid ones do a short red shake.
+## How it was built
 
-3. When the timer hits 0: automatically save {nickname, score, date} to the shared leaderboard, then go to the leaderboard screen.
+WordStorm started as a single detailed product prompt describing the game flow, rules, scoring and design direction, which I used to generate the first version in Lovable. From there I iterated on the game and now maintain the code in this repository.
 
-4. Leaderboard screen: ranked list (rank, nickname, score) sorted highest first, top 3 visually highlighted, and the current player's row emphasized. Include a "Play again" button and a small note that scores are shared live across the team.
+The original prompt is kept in [PROMPT.md](PROMPT.md) to show how the product was specified.
 
-DESIGN: clean, modern, minimalist indie-game feel — like a polished daily word game. One accent color, rounded tiles with soft shadows, satisfying press states, clear readable type, mobile-friendly. Keep it neat and uncluttered.
+## Run locally
 
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://wordstorm.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/c927c6ae-35bc-4fcc-952d-1f39e8715f04).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Requires Node.js and npm.
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+git clone https://github.com/lordvoldemort777/wordstorm.git
+cd wordstorm
+npm install
 npm run dev
 ```
+
+Then open the local URL shown in the terminal.
+
+## What I learned
+
+- Writing a clear, testable product spec for an AI builder: flow, rules, edge cases and design in one prompt
+- Making a fair daily game with a date-seeded board
+- Syncing a shared leaderboard across players without accounts
+
+## Next steps
+
+- Show all possible words on the board after the round ends
+- Daily and all-time leaderboard tabs
+- Streaks and shareable results
+
+## Author
+
+**Abhinaya Hari**, [LinkedIn](#) · [Portfolio](#)
