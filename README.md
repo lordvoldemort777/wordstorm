@@ -1,4 +1,4 @@
-# Daily Word Duel
+# Wordstorm
 
 Build a single-page word puzzle game with a shared team leaderboard. Use Lovable Cloud (the built-in backend) so that everyone who opens the link shares one live leaderboard — no login required.
 
