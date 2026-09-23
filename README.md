@@ -65,4 +65,4 @@ Then open the local URL shown in the terminal.
 
 ## Author
 
-**Abhinaya Hari**, [LinkedIn](#) · [Portfolio](#)
+**Abhinaya Hari** · [LinkedIn](www.linkedin.com/in/abhinayahari) · [Portfolio]("In Progress")
